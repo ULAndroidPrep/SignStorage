@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Pics</string>
+    <string name="caption">caption</string>
+    <string name="imageUrl">URL of photo</string>
+    <string name="dialog_add_pic_title">Add a Pic</string>
+    <string name="dialog_edit_pic_title">Edit a Pic</string>
+    <string name="image">Image</string>
+</resources>

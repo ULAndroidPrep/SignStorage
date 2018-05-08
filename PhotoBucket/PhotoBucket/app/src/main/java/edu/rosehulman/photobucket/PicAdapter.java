@@ -81,6 +81,10 @@ public class PicAdapter extends RecyclerView.Adapter<PicAdapter.ViewHolder> {
 
     // Push the bitmap to Firebase Storage.
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    if (bitmap == null) {
+      Log.e(Constants.TAG, "bitmap is null!!!!!!!!!!!!!");
+      return; // just to avoid the crash
+    }
     bitmap.compress(Bitmap.CompressFormat.JPEG, 100, baos);
     byte[] data = baos.toByteArray();
 

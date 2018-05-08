@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.support.v4.app.Fragment;
@@ -15,6 +16,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
+
+import java.io.IOException;
 
 import edu.rosehulman.photobucket.Constants;
 import edu.rosehulman.photobucket.MainActivity;
@@ -28,6 +31,7 @@ public class PicListFragment extends Fragment {
   private OnPicSelectedListener mOnPicSelectedListener;
   private PicAdapter mAdapter;
   public static final int RC_TAKE_PICTURE = 43;
+  public static final int RC_CHOOSE_PICTURE = 44;
 
   public PicListFragment() {
     // Required empty public constructor
@@ -72,13 +76,13 @@ public class PicListFragment extends Fragment {
       }
     });
 
-//    builder.setPositiveButton("Choose Photo", new DialogInterface.OnClickListener() {
-//      @Override
-//      public void onClick(DialogInterface dialog, int which) {
-//        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-//        startActivityForResult(takePictureIntent, RC_TAKE_PICTURE);
-//      }
-//    });
+    builder.setNegativeButton("Choose Photo", new DialogInterface.OnClickListener() {
+      @Override
+      public void onClick(DialogInterface dialog, int which) {
+        Intent choosePictureIntent = new Intent(Intent.ACTION_PICK);
+        startActivityForResult(choosePictureIntent, RC_CHOOSE_PICTURE);
+      }
+    });
 
     if (photo != null) {
       builder.setNeutralButton("Delete", new DialogInterface.OnClickListener() {
@@ -88,12 +92,12 @@ public class PicListFragment extends Fragment {
         }
       });
     }
-    builder.setNegativeButton(android.R.string.cancel, null);
+//    builder.setNegativeButton(android.R.string.cancel, null);
     builder.create().show();
   }
 
   @Override
-  public void onActivityResult(int requestCode, int resultCode, final Intent data) {
+  public void onActivityResult(final int requestCode, int resultCode, final Intent data) {
     //Toast.makeText(getActivity(), "onActivityResult", Toast.LENGTH_SHORT).show();
     AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
     builder.setTitle("What is the caption?");
@@ -104,10 +108,35 @@ public class PicListFragment extends Fragment {
       @Override
       public void onClick(DialogInterface dialog, int which) {
         String name = editText.getText().toString();
-        sendPhotoToAdapter(name, data);
+
+        if (requestCode == RC_TAKE_PICTURE) {
+          sendPhotoToAdapter(name, data);
+        } else if (requestCode == RC_CHOOSE_PICTURE) {
+          sendGalleryPhotoToAdapter(name, data);
+        }
+
       }
     });
     builder.create().show();
+  }
+
+  private void sendGalleryPhotoToAdapter(String name, Intent data) {
+    if (data != null && data.getData() != null) {
+      Uri uri = data.getData();
+      String location = uri.toString();
+      Bitmap bitmap = null;
+      try {
+        bitmap = MediaStore.Images.Media.getBitmap(getActivity().getContentResolver(), uri);
+      } catch (IOException e) {
+        Log.e(Constants.TAG, "error getting photo from gallery", e);
+      }
+      Log.d(Constants.TAG, "Sending gallery image to addPhoto");
+      if (bitmap == null) {
+        Log.e(Constants.TAG, "bitmp is null");
+      } else {
+        mAdapter.addPhoto(name, location, bitmap);
+      }
+    }
   }
 
   private void sendPhotoToAdapter(String name, Intent data) {

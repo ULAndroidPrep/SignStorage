@@ -1,6 +1,7 @@
 package edu.rosehulman.photobucket;
 
 import android.graphics.Bitmap;
+import android.support.annotation.NonNull;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -8,12 +9,18 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
+import com.google.firebase.storage.UploadTask;
 
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,6 +34,7 @@ public class PicAdapter extends RecyclerView.Adapter<PicAdapter.ViewHolder> {
   private PicListFragment.OnPicSelectedListener mOnPicSelectedListener;
   private List<Pic> mPics;
   private DatabaseReference mPicsRef;
+  private StorageReference mPicsStorageRef;
 
   public PicAdapter(PicListFragment.OnPicSelectedListener onPicSelectedListener, PicListFragment picListFragment) {
     mOnPicSelectedListener = onPicSelectedListener;
@@ -34,15 +42,7 @@ public class PicAdapter extends RecyclerView.Adapter<PicAdapter.ViewHolder> {
     mPics = new ArrayList<>();
     mPicsRef = FirebaseDatabase.getInstance().getReference().child("pics");
     mPicsRef.addChildEventListener(new PicChildEventListener());
-
-  }
-
-  public void firebasePush(String caption, String url) {
-    Pic pic = new Pic(caption, url);
-    String documentKey = mPicsRef.push().getKey();
-
-
-    mPicsRef.child(documentKey).setValue(pic);
+    mPicsStorageRef = FirebaseStorage.getInstance().getReference().child("pics");
   }
 
   public void firebaseRemove(Pic pic) {
@@ -73,11 +73,37 @@ public class PicAdapter extends RecyclerView.Adapter<PicAdapter.ViewHolder> {
     return mPics.size();
   }
 
-  public void addPhoto(String name, String location, Bitmap bitmap) {
+  public void addPhoto(final String name, String location, Bitmap bitmap) {
     // Need bitmap to send it to storage
-    Pic photo = new Pic(name, location);
+    //Pic photo = new Pic(name, location);  // old
 
-    firebasePush(name, location);
+    final String documentKey = mPicsRef.push().getKey();
+
+    // Push the bitmap to Firebase Storage.
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    bitmap.compress(Bitmap.CompressFormat.JPEG, 100, baos);
+    byte[] data = baos.toByteArray();
+
+    UploadTask uploadTask = mPicsStorageRef.child(documentKey).putBytes(data);
+    uploadTask.addOnFailureListener(new OnFailureListener() {
+      @Override
+      public void onFailure(@NonNull Exception exception) {
+        // Handle unsuccessful uploads
+      }
+    }).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+      @Override
+      public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+        // taskSnapshot.getMetadata() contains file metadata such as size, content-type, etc.
+        // ...
+
+        Pic photo = new Pic(name, taskSnapshot.getDownloadUrl().toString());
+        mPicsRef.child(documentKey).setValue(photo);
+
+      }
+    });
+
+
+
   }
 
   private class PicChildEventListener implements ChildEventListener {
@@ -96,8 +122,8 @@ public class PicAdapter extends RecyclerView.Adapter<PicAdapter.ViewHolder> {
       for (Pic pic : mPics) {
         if (key.equals(pic.getKey())) {
           pic.setValues(dataSnapshot.getValue(Pic.class));
-          notifyItemChanged(mPics.indexOf(pic));
-          //notifyDataSetChanged();
+          //notifyItemChanged(mPics.indexOf(pic));
+          notifyDataSetChanged();
           return;
         }
       }
@@ -109,8 +135,8 @@ public class PicAdapter extends RecyclerView.Adapter<PicAdapter.ViewHolder> {
       for (Pic pic : mPics) {
         if (key.equals(pic.getKey())) {
           mPics.remove(pic);
-          notifyItemRemoved(mPics.indexOf(pic));
-          //notifyDataSetChanged();
+          //notifyItemRemoved(mPics.indexOf(pic));
+          notifyDataSetChanged();
           return;
         }
       }

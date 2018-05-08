@@ -39,7 +39,10 @@ public class PicAdapter extends RecyclerView.Adapter<PicAdapter.ViewHolder> {
 
   public void firebasePush(String caption, String url) {
     Pic pic = new Pic(caption, url);
-    mPicsRef.push().setValue(pic);
+    String documentKey = mPicsRef.push().getKey();
+
+
+    mPicsRef.child(documentKey).setValue(pic);
   }
 
   public void firebaseRemove(Pic pic) {
@@ -73,7 +76,8 @@ public class PicAdapter extends RecyclerView.Adapter<PicAdapter.ViewHolder> {
   public void addPhoto(String name, String location, Bitmap bitmap) {
     // Need bitmap to send it to storage
     Pic photo = new Pic(name, location);
-    mPicsRef.push().setValue(photo);
+
+    firebasePush(name, location);
   }
 
   private class PicChildEventListener implements ChildEventListener {
